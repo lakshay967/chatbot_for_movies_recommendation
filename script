@@ -1,0 +1,33 @@
+document.getElementById('send-btn').addEventListener('click', function() {
+    let userInput = document.getElementById('user-input').value;
+    document.getElementById('user-input').value = "";
+
+    let chatLog = document.getElementById('chat-log');
+    chatLog.innerHTML += `<p><b>You:</b> ${userInput}</p>`;
+
+    // Send data to PHP via AJAX
+    fetch('backend.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userInput })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        chatLog.innerHTML += `<p><b>Bot:</b> ${data.reply}</p>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+    })
+    .catch(error => {
+        chatLog.innerHTML += `<p><b>Bot:</b> Sorry, an error occurred. ${error.message}</p>`;
+    });
+});
+
+// Add event listener for refresh button
+document.getElementById('refresh-btn').addEventListener('click', function() {
+    document.getElementById('chat-log').innerHTML = ""; // Clear chat log
+    document.getElementById('user-input').value = ""; // Clear input field
+});
