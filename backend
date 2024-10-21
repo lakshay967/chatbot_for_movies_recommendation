@@ -1,0 +1,93 @@
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+header('Content-Type: application/json');
+
+// Database connection
+$servername = "localhost"; // Change if needed
+$username = "root"; // Default username for XAMPP/WAMP
+$password = ""; // Leave empty if no password is set
+$dbname = "movie_db"; // Your database name
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die(json_encode(['error' => "Connection failed: " . $conn->connect_error]));
+}
+
+// Get the input from JavaScript
+$input = json_decode(file_get_contents('php://input'), true);
+$userMessage = $input['message'] ?? ''; // Default to empty string if not set
+
+// Predefined list of general responses 
+$generalResponses = [
+    "hi", "hello", "hey", "greetings", "what's up", "how are you", 
+    "good morning", "good afternoon", "good evening", "howdy", 
+    "hi there", "yo", "what's new", "how can I help you", 
+    "nice to meet you", "how's it going"
+];
+
+// Normalize user input to lowercase for comparison
+$userMessageLower = strtolower(trim($userMessage));
+
+// Check if the user input matches any general responses
+foreach ($generalResponses as $greeting) {
+    if (stripos($userMessageLower, $greeting) !== false) {
+        echo json_encode(['reply' => "Hello! How can I assist you today?"]);
+        exit; // End execution if a response is found
+    }
+}
+
+// Parse user input to detect multiple genres
+$genres = [];
+$availableGenres = ['action', 'comedy', 'drama', 'thriller', 'romance', 'horror', 'sci-fi', 'fantasy', 'documentary', 'animation']; // Add more genres if needed
+
+// Check for each genre in the user input
+foreach ($availableGenres as $genre) {
+    if (stripos($userMessageLower, $genre) !== false) {
+        $genres[] = $genre;
+    }
+}
+
+// Build SQL query based on the detected genres
+$query = "SELECT title FROM movies WHERE 1=1";
+
+if (!empty($genres)) {
+    $genreConditions = array_map(function($g) {
+        return "genre LIKE '%$g%'";
+    }, $genres);
+    $query .= " AND (" . implode(' OR ', $genreConditions) . ")";
+}
+
+// Add random selection and limit to 5
+$query .= " ORDER BY RAND() LIMIT 5"; // Randomize the results and limit to 5
+
+$result = $conn->query($query);
+$movies = [];
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $movies[] = $row['title'];
+    }
+}
+
+// Prepare response
+if (count($movies) > 0) {
+    $reply = "I've got some movie picks for you: " . implode(', ', $movies);
+} else {
+    $reply = "Oops, no movies found for those genres. Try another combination?";
+}
+
+// JSON encode the reply and check for errors
+$jsonResponse = json_encode(['reply' => $reply]);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    echo json_encode(['error' => json_last_error_msg()]);
+    exit;
+}
+
+echo $jsonResponse;
+
+$conn->close();
+?>
